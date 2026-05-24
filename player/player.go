@@ -25,7 +25,7 @@ type Player struct {
 	speed         float64
 	Dir           Direction
 	angle         float64
-	mode          string
+	Mode          string
 	img           *ebiten.Image
 }
 
@@ -36,22 +36,18 @@ func (p *Player) Init(playerImg *ebiten.Image) {
 	p.img = playerImg
 	p.W = 70
 	p.H = 70
-	p.mode = "cube"
+	p.Mode = "cube"
 }
 
 func (p Player) FloorValue(blocksBetweenPlatformAndFloor int) float64 {
 	return (level.FloorY() - p.H*p.s) - (float64(blocksBetweenPlatformAndFloor) * level.BlockSize)
 }
 
-func (p Player) calculateTheBlocksBelow(blocks []level.LevelObject) int {
+func (p Player) calculateTheBlocksBelow() int {
 	closestBlock := -1
 	closestBlockDistance := float64(999999)
 
-	for _, b := range blocks {
-		if b.X <= 0 || b.X+b.W >= screenWidth {
-			continue
-		}
-
+	for _, b := range level.BlocksInTheScreen {
 		if p.X+p.W > b.X && p.X < b.X+b.W {
 			if b.Y >= p.Y {
 				distance := b.Y - p.Y
@@ -66,7 +62,37 @@ func (p Player) calculateTheBlocksBelow(blocks []level.LevelObject) int {
 	return closestBlock
 }
 
-func (p *Player) ManageJumpAndGravity(blocks []level.LevelObject, screenHeight float64, jumps *int) {
+func (p *Player) PassPortal(blocks []level.LevelObject, shipAndCubeImg, cubeImg *ebiten.Image) {
+	for i := range blocks {
+		b := blocks[i]
+
+		if b.X <= -level.BlockSize || b.X >= screenWidth {
+			continue
+		}
+
+		if b.Utility == "" {
+			continue
+		}
+
+		if !gameutil.RectColl(p.X, p.Y, p.W, p.H, b.X, b.Y, b.W, b.H) {
+			continue
+		}
+
+		p.Mode = b.Utility
+		p.speed = 0
+
+		switch p.Mode {
+		case "ship":
+			p.angle = 0
+			p.img = shipAndCubeImg
+		case "cube":
+			p.angle = 0
+			p.img = cubeImg
+		}
+	}
+}
+
+func (p *Player) ManageJumpAndGravity_CubeMode(blocks []level.LevelObject, screenHeight float64, jumps *int) {
 
 	if level.Clear(p.X) {
 		return
@@ -93,22 +119,44 @@ func (p *Player) ManageJumpAndGravity(blocks []level.LevelObject, screenHeight f
 		p.speed = -5
 	}
 
-	if p.Y > p.FloorValue(p.calculateTheBlocksBelow(blocks)) {
-		p.Y = p.FloorValue(p.calculateTheBlocksBelow(blocks))
+	if p.Y > p.FloorValue(p.calculateTheBlocksBelow()) {
+		p.Y = p.FloorValue(p.calculateTheBlocksBelow())
 	}
 }
 
-func (p Player) OnTheGround(blocks []level.LevelObject, screenHeight float64) bool {
-	return p.Y >= p.FloorValue(p.calculateTheBlocksBelow(blocks))
+func (p *Player) ManagePropulsionAndGravity_shipMode(blocks []level.LevelObject) {
+	if level.Clear(p.X) {
+		return
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+		p.speed++
+
+		if p.angle > -45 {
+			p.angle -= .05
+		}
+	} else {
+		p.speed--
+
+		if p.angle < 45 {
+			p.angle += .05
+		}
+	}
+
+	p.Y -= p.speed
 }
 
-func (p *Player) DetectDead(blocs []level.LevelObject) {
-	for _, b := range blocs {
-		if b.X <= 0 || b.X >= screenWidth {
+func (p Player) OnTheGround(blocks []level.LevelObject, screenHeight float64) bool {
+	return p.Y >= p.FloorValue(p.calculateTheBlocksBelow())
+}
+
+func (p *Player) DetectDead(blocks []level.LevelObject, cubeImg *ebiten.Image) {
+	for _, b := range level.BlocksInTheScreen {
+		if b.Utility != "" {
 			continue
 		}
 
-		p.DetectCollOnUpLeftAndRight(b, blocs)
+		p.DetectCollOnUpLeftAndRight(b, blocks, cubeImg)
 	}
 }
 
@@ -123,12 +171,15 @@ func (p *Player) EndAttractionAndDetection(blocks []level.LevelObject) {
 
 }
 
-func (p *Player) DetectCollOnUpLeftAndRight(b level.LevelObject, blocks []level.LevelObject) {
+func (p *Player) DetectCollOnUpLeftAndRight(b level.LevelObject, blocks []level.LevelObject, cubeImg *ebiten.Image) {
 
 	reset := func() {
 		if level.Clear(p.X) {
 			p.Y = -2000
 		} else {
+			p.Mode = "cube"
+			p.img = cubeImg
+
 			for i := range blocks {
 				blocks[i].X += level.DistanceTraveled
 			}
@@ -158,7 +209,7 @@ func (p *Player) DetectCollOnUpLeftAndRight(b level.LevelObject, blocks []level.
 	}
 }
 
-func (p Player) Draw(playerImg *ebiten.Image, screen *ebiten.Image) {
+func (p Player) Draw(screen *ebiten.Image) {
 	playerOp := &ebiten.DrawImageOptions{}
 
 	playerOp.GeoM.Translate(-float64(p.img.Bounds().Dx())/2, -float64(p.img.Bounds().Dy())/2)
