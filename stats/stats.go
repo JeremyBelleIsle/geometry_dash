@@ -41,9 +41,9 @@ func (Stats Stats) Draw(screen *ebiten.Image, font *text.GoTextFaceSource, level
 
 	gameutil.DrawText(levelName, 140, int(Stats.x)+int(Stats.w)+100, Stats.x+(Stats.w/5), Stats.y+70, 0, screen, color.RGBA{160, 80, 255, 255}, font)
 
-	vector.DrawFilledRect(screen, float32(Stats.x), float32(Stats.y), float32(Stats.w), float32(Stats.h), Stats.clr, true)
+	vector.DrawFilledRect(screen, float32(Stats.x), float32(Stats.y), float32(Stats.w), float32(Stats.h), Stats.clr, false)
 
-	vector.StrokeRect(screen, float32(Stats.x), float32(Stats.y), float32(Stats.w), float32(Stats.h), 100, color.RGBA{0, 255, 0, 255}, true)
+	vector.StrokeRect(screen, float32(Stats.x), float32(Stats.y), float32(Stats.w), float32(Stats.h), 100, color.RGBA{0, 255, 0, 255}, false)
 
 	gameutil.DrawText(fmt.Sprintf("jumps: %d", Stats.Jumps), 100, int(Stats.x)+int(Stats.w), Stats.x+80, Stats.y+(Stats.h/4), 0, screen, color.RGBA{255, 255, 255, 255}, font)
 

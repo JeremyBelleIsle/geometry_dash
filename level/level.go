@@ -20,6 +20,9 @@ type LevelObject struct {
 
 var DistanceTraveled float64
 var BlocksInTheScreen []LevelObject
+var BestDist float64
+
+var blockImg *ebiten.Image
 
 const (
 	BlockSize    = 80.0
@@ -27,7 +30,7 @@ const (
 	screenHeight = 1600.0
 )
 
-var ScrollingSpeed = 14.0
+var ScrollingSpeed = 16.0
 var MurDeVictoireX float64
 
 func FloorY() float64 {
@@ -37,14 +40,35 @@ func Clear(px float64) bool {
 	return DistanceTraveled >= MurDeVictoireX-(1200+px)
 }
 func FindBlocsInTheScreen(blocks []LevelObject) {
-	BlocksInTheScreen = []LevelObject{} // Réinitialiser la liste
+	BlocksInTheScreen = BlocksInTheScreen[:0]
+
 	for _, b := range blocks {
+
 		if b.X <= -BlockSize || b.X+b.W >= screenWidth+BlockSize {
 			continue
 		}
 
+		// if b.X+b.W >= screenWidth+BlockSize {
+		// 	break
+		// }
+
 		BlocksInTheScreen = append(BlocksInTheScreen, b)
 	}
+}
+
+func InitBlockImage() {
+	if blockImg != nil {
+		return // Déjà initialisée
+	}
+	// On crée une image vide de la taille d'un bloc
+	blockImg = ebiten.NewImage(int(BlockSize), int(BlockSize))
+
+	clrBody := color.RGBA{10, 15, 50, 255}
+	clrLine := color.RGBA{160, 80, 255, 255}
+
+	// On dessine le rectangle vectoriel UNE SEULE FOIS sur notre image
+	vector.DrawFilledRect(blockImg, 0, 0, float32(BlockSize), float32(BlockSize), clrBody, true)
+	vector.StrokeRect(blockImg, 4, 4, float32(BlockSize)-8, float32(BlockSize)-8, 4, clrLine, true)
 }
 
 func Generate(levelData *[]LevelObject, levelInt int, pinkPortal, greenPortal *ebiten.Image) {
@@ -242,16 +266,24 @@ func Generate(levelData *[]LevelObject, levelInt int, pinkPortal, greenPortal *e
 	}
 }
 
-func Scrolling(blocs []LevelObject, px float64) []LevelObject {
-	DistanceTraveled += ScrollingSpeed
-	if Clear(px) {
-		ScrollingSpeed -= .18
-		if ScrollingSpeed < 0 {
-			ScrollingSpeed = 0
+func Scrolling(blocs []LevelObject, px *float64) []LevelObject {
+	if *px >= 500 {
+		DistanceTraveled += ScrollingSpeed
+
+		if DistanceTraveled > BestDist {
+			BestDist = DistanceTraveled
 		}
-	}
-	for i := range blocs {
-		blocs[i].X -= ScrollingSpeed
+		if Clear(*px) {
+			ScrollingSpeed -= .18
+			if ScrollingSpeed < 0 {
+				ScrollingSpeed = 0
+			}
+		}
+		for i := range blocs {
+			blocs[i].X -= ScrollingSpeed
+		}
+	} else {
+		*px += 16
 	}
 	return blocs
 }
@@ -259,8 +291,9 @@ func Scrolling(blocs []LevelObject, px float64) []LevelObject {
 func (level *LevelObject) Draw(screen *ebiten.Image, screenWidth float64) {
 
 	if level.Utility == "" {
-		vector.DrawFilledRect(screen, float32(level.X), float32(level.Y), float32(level.W), float32(level.H), level.clr1, true)
-		vector.StrokeRect(screen, float32(level.X)+4, float32(level.Y)+4, float32(level.W)-8, float32(level.H)-8, 4, level.clr2, true)
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(level.X, level.Y)
+		screen.DrawImage(blockImg, op)
 	} else {
 
 		op := &ebiten.DrawImageOptions{}

@@ -30,7 +30,7 @@ type Player struct {
 }
 
 func (p *Player) Init(playerImg *ebiten.Image) {
-	p.X = 500
+	p.X = -80
 	p.Y = p.FloorValue(0)
 	p.s = .7
 	p.img = playerImg

@@ -24,6 +24,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 //go:embed RobotoMono.ttf
@@ -51,10 +52,11 @@ type Game struct {
 }
 
 var (
+	resumeButton   *ebiten.Image
+	menuButton     *ebiten.Image
 	cubeImg        *ebiten.Image
 	pauseImg       *ebiten.Image
 	menuPlayButton *ebiten.Image
-	gamePlayButton *ebiten.Image
 	shipAndCubeImg *ebiten.Image
 	pinkPortal     *ebiten.Image
 	greenPortal    *ebiten.Image
@@ -91,14 +93,13 @@ func levelName(level int) string {
 }
 
 func (g *Game) Update() error {
-	if g.state != "menu" {
-
+	if g.state == "game" {
+		// Déplace les blocs et ajuste la vitesse de défilement
+		g.blocks = level.Scrolling(g.blocks, &g.player.X)
 		// trouve et encode les blocks visible sur l'écran
 		level.FindBlocsInTheScreen(g.blocks)
 		// Calcule et met à jour le temps écoulé selon la position du joueur
 		g.stats = stats.TimeCalculator(g.stats, g.player.X)
-		// Déplace les blocs et ajuste la vitesse de défilement
-		g.blocks = level.Scrolling(g.blocks, g.player.X)
 		// Vérifie si le joueur passe par un portail et change de mode si nécessaire
 		g.player.PassPortal(g.blocks, shipAndCubeImg, cubeImg)
 		// Gère les sauts et la gravité
@@ -119,16 +120,23 @@ func (g *Game) Update() error {
 
 	if futureState != "D'ONT CHANGE STATE" {
 		g.state = futureState
+
+		if g.state == "menu" {
+			g.blocks = []level.LevelObject{}
+			level.DistanceTraveled = 0
+			g.player.X = -80
+
+			level.Generate(&g.blocks, g.level, pinkPortal, greenPortal)
+		}
 	}
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	fps := ebiten.CurrentFPS()
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS: %0.2f", fps))
 
-	if g.state != "menu" {
+	switch g.state {
+	case "game", "gameMenu":
 
 		g.player.Draw(screen)
 
@@ -140,7 +148,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			g.stats.Draw(screen, mplusSource, g.level, levelName(g.level))
 		}
 
-	} else {
+		if g.state == "gameMenu" {
+			vector.DrawFilledRect(screen, 0, 0, ScreenWidth, ScreenHeight, color.RGBA{0, 0, 0, 180}, false)
+
+			menu.Draw(levelName(g.level), faceSource, screen)
+		}
+
+	case "menu":
 		screen.Fill(color.RGBA{173, 216, 230, 255})
 	}
 
@@ -148,6 +162,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		but.Draw(screen, g.state)
 	}
 
+	fps := ebiten.CurrentFPS()
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS: %0.2f", fps))
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -183,9 +199,10 @@ func main() {
 	greenPortal = loadImage("green portal.png")
 	pauseImg = loadImage("pause button.png")
 	menuPlayButton = loadImage("play button 1.png")
-	gamePlayButton = loadImage("play button 2.png")
+	resumeButton = loadImage("play button 2.png")
+	menuButton = loadImage("menu button.png")
 
-	menu.Init(&g.buttons, pauseImg, menuPlayButton)
+	menu.Init(&g.buttons, pauseImg, menuPlayButton, resumeButton, menuButton)
 
 	// snd
 	audioContext = audio.NewContext(44100)
@@ -197,6 +214,8 @@ func main() {
 	level.Generate(&g.blocks, g.level, pinkPortal, greenPortal)
 
 	g.player.Init(cubeImg)
+
+	level.InitBlockImage()
 
 	g.stats.Init()
 	if err := ebiten.RunGame(g); err != nil {
