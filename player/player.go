@@ -7,6 +7,7 @@ import (
 
 	"github.com/JeremyBelleIsle/gameutil"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
 type Direction int
@@ -15,9 +16,6 @@ const (
 	Fix Direction = iota
 	Up
 	Down
-
-	screenWidth  = 2560.0
-	screenHeight = 1600.0
 )
 
 type Player struct {
@@ -31,16 +29,17 @@ type Player struct {
 
 func (p *Player) Init(playerImg *ebiten.Image) {
 	p.X = -80
-	p.Y = p.FloorValue(0)
+	p.Y = level.ScreenHeight / 2
 	p.s = .7
 	p.img = playerImg
-	p.W = 70
-	p.H = 70
+	p.W = 120
+	p.H = 120
 	p.Mode = "cube"
 }
 
 func (p Player) FloorValue(blocksBetweenPlatformAndFloor int) float64 {
-	return (level.FloorY() - p.H*p.s) - (float64(blocksBetweenPlatformAndFloor) * level.BlockSize)
+	// On soustrait p.H (120) pour que le bas de la hitbox touche le sol
+	return (level.FloorY() - p.H) - (float64(blocksBetweenPlatformAndFloor) * level.BlockSize)
 }
 
 func (p Player) calculateTheBlocksBelow() int {
@@ -66,7 +65,7 @@ func (p *Player) PassPortal(blocks []level.LevelObject, shipAndCubeImg, cubeImg 
 	for i := range blocks {
 		b := blocks[i]
 
-		if b.X <= -level.BlockSize || b.X >= screenWidth {
+		if b.X <= -level.BlockSize || b.X >= level.ScreenWidth {
 			continue
 		}
 
@@ -150,20 +149,20 @@ func (p Player) OnTheGround(blocks []level.LevelObject, screenHeight float64) bo
 	return p.Y >= p.FloorValue(p.calculateTheBlocksBelow())
 }
 
-func (p *Player) DetectDead(blocks []level.LevelObject, cubeImg *ebiten.Image) {
+func (p *Player) DetectDead(blocks []level.LevelObject, cubeImg *ebiten.Image, crashSnd *audio.Player, musicLevel1 *audio.Player) {
 	for _, b := range level.BlocksInTheScreen {
 		if b.Utility != "" {
 			continue
 		}
 
-		p.DetectCollOnUpLeftAndRight(b, blocks, cubeImg)
+		p.DetectCollOnUpLeftAndRight(b, blocks, cubeImg, crashSnd, musicLevel1)
 	}
 }
 
 func (p *Player) EndAttractionAndDetection(blocks []level.LevelObject) {
 
 	if level.Clear(p.X) {
-		px32, py32 := gameutil.DirigePointToPoint(float32(rand.Intn(15)+5), float32(p.X), float32(p.Y), (screenWidth/2)-50, screenHeight/2-float32(p.H/2))
+		px32, py32 := gameutil.DirigePointToPoint(float32(rand.Intn(15)+5), float32(p.X), float32(p.Y), (level.ScreenWidth/2)-50, level.ScreenHeight/2-float32(p.H/2))
 		p.X, p.Y = float64(px32), float64(py32)
 
 		p.angle += .2
@@ -171,14 +170,20 @@ func (p *Player) EndAttractionAndDetection(blocks []level.LevelObject) {
 
 }
 
-func (p *Player) DetectCollOnUpLeftAndRight(b level.LevelObject, blocks []level.LevelObject, cubeImg *ebiten.Image) {
+func (p *Player) DetectCollOnUpLeftAndRight(b level.LevelObject, blocks []level.LevelObject, cubeImg *ebiten.Image, crashSnd *audio.Player, musicLevel1 *audio.Player) {
 
 	reset := func() {
 		if level.Clear(p.X) {
-			p.Y = -2000
+			p.Y = 1000000
 		} else {
+			crashSnd.Rewind()
+			crashSnd.Play()
+
+			musicLevel1.Rewind()
+
 			p.Mode = "cube"
 			p.img = cubeImg
+			p.Y = p.FloorValue(p.calculateTheBlocksBelow())
 
 			for i := range blocks {
 				blocks[i].X += level.DistanceTraveled
@@ -188,23 +193,7 @@ func (p *Player) DetectCollOnUpLeftAndRight(b level.LevelObject, blocks []level.
 		}
 	}
 
-	// Détection collision HAUT (partie supérieure du player)
-
-	if gameutil.RectColl(b.X, b.Y, b.W, b.H, p.X, p.Y, p.W, p.H-21) {
-		// collision pas asser sensible
-
-		reset()
-	}
-
-	// Détection collision CÔTÉ GAUCHE
-	leftMargin := 1.0 // largeur de la zone sensible à gauche
-	if gameutil.RectColl(b.X, b.Y, b.W, b.H, p.X, p.Y, leftMargin, p.H-21) {
-		reset()
-	}
-
-	// Détection collision CÔTÉ DROIT
-	rightMargin := 1.0 // largeur de la zone sensible à droite
-	if gameutil.RectColl(b.X, b.Y, b.W, b.H, p.X+p.W-rightMargin, p.Y, rightMargin, p.H-21) {
+	if gameutil.RectColl(b.X, b.Y, b.W, b.H, p.X, p.Y, p.W, p.H) {
 		reset()
 	}
 }
@@ -218,6 +207,6 @@ func (p Player) Draw(screen *ebiten.Image) {
 
 	playerOp.GeoM.Scale(p.s, p.s)
 
-	playerOp.GeoM.Translate(p.X, p.Y)
+	playerOp.GeoM.Translate(p.X+60, p.Y+60)
 	screen.DrawImage(p.img, playerOp)
 }

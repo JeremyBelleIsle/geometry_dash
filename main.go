@@ -1,8 +1,3 @@
-//-_-
-//'_'
-//>_<
-//^_^
-
 package main
 
 import (
@@ -10,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"geometry_dash/level"
+	"geometry_dash/levelchooser"
 	"geometry_dash/menu"
 	"geometry_dash/player"
 	"geometry_dash/stats"
@@ -42,14 +38,24 @@ const (
 var audioContext *audio.Context
 
 type Game struct {
-	player          player.Player
-	blocks          []level.LevelObject
-	buttons         []menu.Button
-	state           string
-	principalMusic1 *audio.Player
-	stats           stats.Stats
-	level           int
+	player   player.Player
+	blocks   []level.LevelObject
+	buttonsE []menu.EnvelopeButton
+	buttonsG []menu.GameButton
+	state    string
+	stats    stats.Stats
+	level    int
 }
+
+var (
+	level1Music *audio.Player
+	level2Music *audio.Player
+)
+
+var (
+	crashSnd *audio.Player
+	winSnd   *audio.Player
+)
 
 var (
 	resumeButton   *ebiten.Image
@@ -57,10 +63,16 @@ var (
 	cubeImg        *ebiten.Image
 	pauseImg       *ebiten.Image
 	menuPlayButton *ebiten.Image
+	downArrow      *ebiten.Image
+	leftArrow      *ebiten.Image
+	rightArrow     *ebiten.Image
 	shipAndCubeImg *ebiten.Image
 	pinkPortal     *ebiten.Image
 	greenPortal    *ebiten.Image
+	nextButton     *ebiten.Image
 )
+
+var levelsNames = []string{"INTRO", "INFERNO", "MINEFIELD", "MASTER"}
 
 func loadImage(path string) *ebiten.Image {
 	f, err := os.Open(path)
@@ -82,14 +94,14 @@ func levelName(level int) string {
 	case 1:
 		return "INTRO"
 	case 2:
-		return "ELECTRO DYNAMIX"
+		return "INFERNO"
 	case 3:
 		return "MINEFIELD"
 	case 4:
 		return "MASTER"
 	}
 
-	return "WTF YOU BUG"
+	return "Coming soon!!!"
 }
 
 func (g *Game) Update() error {
@@ -102,6 +114,8 @@ func (g *Game) Update() error {
 		g.stats = stats.TimeCalculator(g.stats, g.player.X)
 		// Vérifie si le joueur passe par un portail et change de mode si nécessaire
 		g.player.PassPortal(g.blocks, shipAndCubeImg, cubeImg)
+		// Vérifie si le joueur est mort (collision avec un bloc)
+		g.player.DetectDead(g.blocks, cubeImg, crashSnd, level1Music)
 		// Gère les sauts et la gravité
 		switch g.player.Mode {
 		case "cube":
@@ -109,30 +123,43 @@ func (g *Game) Update() error {
 		case "ship":
 			g.player.ManagePropulsionAndGravity_shipMode(g.blocks)
 		}
-		// Vérifie si le joueur est mort (collision avec un bloc)
-		g.player.DetectDead(g.blocks, cubeImg)
 		// Gère les effets d'attraction de la fin
 		g.player.EndAttractionAndDetection(g.blocks)
 
+		if level.ScrollingSpeed > .8 && level.ScrollingSpeed < 1.2 {
+			winSnd.Rewind()
+			winSnd.Play()
+		}
+
+	} else {
+		levelchooser.DetectClickOnArrow(&g.level)
 	}
 
-	futureState := menu.Update(g.buttons)
+	futureState := menu.Update(g.buttonsE)
 
 	if futureState != "D'ONT CHANGE STATE" {
-		g.state = futureState
+		if futureState == "game" {
+			if g.state == "menu" {
+				level1Music.Rewind()
+				level1Music.Play()
+				g.blocks = []level.LevelObject{}
+				level.DistanceTraveled = 0
+				g.player.X = -80
+				g.player.Y = ScreenHeight / 2
 
-		if g.state == "menu" {
-			g.blocks = []level.LevelObject{}
-			level.DistanceTraveled = 0
-			g.player.X = -80
+				level.Generate(&g.blocks, g.level, pinkPortal, greenPortal)
+			} else {
+				level1Music.Play()
+			}
+		} else {
 
-			level.Generate(&g.blocks, g.level, pinkPortal, greenPortal)
+			level1Music.Pause()
 		}
+		g.state = futureState
 	}
 
 	return nil
 }
-
 func (g *Game) Draw(screen *ebiten.Image) {
 
 	switch g.state {
@@ -156,9 +183,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	case "menu":
 		screen.Fill(color.RGBA{173, 216, 230, 255})
+
+		levelchooser.Draw(screen, levelName(g.level), downArrow, leftArrow, rightArrow, faceSource)
 	}
 
-	for _, but := range g.buttons {
+	for _, but := range g.buttonsE {
 		but.Draw(screen, g.state)
 	}
 
@@ -201,17 +230,21 @@ func main() {
 	menuPlayButton = loadImage("play button 1.png")
 	resumeButton = loadImage("play button 2.png")
 	menuButton = loadImage("menu button.png")
+	downArrow = loadImage("futuristic triangle down.png")
+	nextButton = loadImage("nextLevel.png")
 
-	menu.Init(&g.buttons, pauseImg, menuPlayButton, resumeButton, menuButton)
+	leftArrow, rightArrow = levelchooser.Init(downArrow)
+
+	menu.InitEnvelopeButtons(&g.buttonsE, pauseImg, menuPlayButton, resumeButton, menuButton)
+
+	menu.InitGameButtons(&g.buttonsG, nextButton)
 
 	// snd
 	audioContext = audio.NewContext(44100)
 
-	g.principalMusic1, _ = gameutil.LoadSound(44100, audioContext, "level_1.mp3")
-
-	// g.principalMusic1.Play()
-
-	level.Generate(&g.blocks, g.level, pinkPortal, greenPortal)
+	level1Music, _ = gameutil.LoadSound(44100, audioContext, "level_1.mp3")
+	crashSnd, _ = gameutil.LoadSound(44100, audioContext, "crash 8-bit.wav")
+	winSnd, _ = gameutil.LoadSound(44100, audioContext, "win.wav")
 
 	g.player.Init(cubeImg)
 

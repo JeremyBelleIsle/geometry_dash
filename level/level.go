@@ -26,15 +26,15 @@ var blockImg *ebiten.Image
 
 const (
 	BlockSize    = 80.0
-	screenWidth  = 2560.0
-	screenHeight = 1600.0
+	ScreenWidth  = 2560.0
+	ScreenHeight = 1600.0
 )
 
-var ScrollingSpeed = 16.0
+var ScrollingSpeed = 14.0
 var MurDeVictoireX float64
 
 func FloorY() float64 {
-	return screenHeight - (BlockSize * 4)
+	return ScreenHeight - (BlockSize * 4)
 }
 func Clear(px float64) bool {
 	return DistanceTraveled >= MurDeVictoireX-(1200+px)
@@ -43,15 +43,9 @@ func FindBlocsInTheScreen(blocks []LevelObject) {
 	BlocksInTheScreen = BlocksInTheScreen[:0]
 
 	for _, b := range blocks {
-
-		if b.X <= -BlockSize || b.X+b.W >= screenWidth+BlockSize {
+		if b.X <= -BlockSize || b.X+b.W >= ScreenWidth+BlockSize {
 			continue
 		}
-
-		// if b.X+b.W >= screenWidth+BlockSize {
-		// 	break
-		// }
-
 		BlocksInTheScreen = append(BlocksInTheScreen, b)
 	}
 }
@@ -91,177 +85,260 @@ func Generate(levelData *[]LevelObject, levelInt int, pinkPortal, greenPortal *e
 	addPortalGate := func(x float64) {
 		wallHeight := 6
 		gapSize := 6
-		doorOffset := BlockSize * 2 // Ajustez cette valeur pour descendre/monter la porte
+		doorOffset := BlockSize * 2
 
 		addWall(x, floorY-BlockSize+doorOffset, wallHeight)
-
 		addWall(x, floorY-BlockSize*float64(wallHeight+gapSize+1)+doorOffset, wallHeight)
 	}
 
-	if levelInt == 1 {
-		addPlat(-800.0, floorY, 5000) // Sol très long pour supporter tout le niveau
+	switch levelInt {
+	case 1:
+		addPlat(-800.0, floorY, 5000)
 
-		// 1. INTRO : Sauts simples pour prendre le rythme
+		// Espacements augmentés pour le niveau 1
+		addWall(currX, floorY-BlockSize, 1)
+		currX += BlockSize * 12
+		addWall(currX, floorY-BlockSize, 2)
+		currX += BlockSize * 16
+
+		addWall(currX, floorY-BlockSize, 1)
+		currX += BlockSize * 10
 		addWall(currX, floorY-BlockSize, 1)
 		currX += BlockSize * 8
-		addWall(currX, floorY-BlockSize, 2)
-		currX += BlockSize * 12
-
-		// 2. TIMING : Murs espacés de façon irrégulière
 		addWall(currX, floorY-BlockSize, 1)
-		currX += BlockSize * 6
-		addWall(currX, floorY-BlockSize, 1)
-		currX += BlockSize * 4
-		addWall(currX, floorY-BlockSize, 1)
-		currX += BlockSize * 9
+		currX += BlockSize * 14
 
 		for i := 0; i < 5; i++ {
 			heightOffset := float64(3 + i)
 			addPlat(currX, floorY-BlockSize*heightOffset, 1)
-
 			if i < 4 {
-				currX += BlockSize * 6
+				currX += BlockSize * 5
 			}
 		}
 
-		// AJUSTEMENT ICI : Rapprochement du tunnel
-		currX += BlockSize * 5 // Écart de 3 blocs (saut confortable mais rapide)
-
-		// 5. TUNNEL : Plafond bas constant
+		currX += BlockSize * 5
 		addPlat(currX, floorY-BlockSize*4, 30)
-		currX += BlockSize * 33
+		currX += BlockSize * 38
+		addWall(currX-BlockSize*4, floorY-BlockSize, 4)
 
-		addWall(currX-BlockSize*4, floorY-BlockSize, 3) // Mur de sécurité pour bloquer ceux qui restent au sol
+		currX += BlockSize * 6
 
-		currX += BlockSize * 3
-
-		// 6. STAIRS : Descente rapide
 		for i := 4; i >= 2; i-- {
 			addPlat(currX, floorY-float64(i)*BlockSize, 2)
-			currX += BlockSize * 6
+			currX += BlockSize * 9
 		}
 
 		addPlat(currX, floorY-BlockSize*3, 2)
-
-		currX += BlockSize * 3
-
-		currX += BlockSize * 2
+		currX += BlockSize * 5
 		addPortalGate(currX)
 
 		*levelData = append(*levelData, LevelObject{
 			X:       currX,
-			Y:       screenHeight/2 - BlockSize,
-			W:       float64(pinkPortal.Bounds().Dx()) * .6, // a definir
-			H:       float64(pinkPortal.Bounds().Dy()) * .6, // a definir
+			Y:       ScreenHeight/2 - BlockSize,
+			W:       float64(pinkPortal.Bounds().Dx()) * .6,
+			H:       float64(pinkPortal.Bounds().Dy()) * .6,
 			img:     pinkPortal,
 			Utility: "ship",
 			s:       .85,
 		})
 
-		// --- SECTION SHIP (Vaisseau) ---
-		// --- SECTION SHIP (Vaisseau) ---
-		currX += BlockSize * 15
+		currX += BlockSize * 20
 
-		// 7. SHIP CAVERN : Entrée dynamique et caverne en dents de scie
-		// Un plafond qui descend progressivement pour forcer le joueur à plonger dès l'entrée
+		addWall(currX, floorY-BlockSize*11, 5)
+
 		for i := 0; i < 5; i++ {
 			addPlat(currX+float64(i)*BlockSize, floorY-BlockSize*float64(12-i), 1)
 		}
 
-		// Intérieur de la caverne : Obstacles en escaliers (plus agréables pour le Ship)
-		// Obstacle 1 : Une colline au sol à survoler
-		addPlat(currX+BlockSize*8, floorY-BlockSize*3, 3)
-		addPlat(currX+BlockSize*9, floorY-BlockSize*4, 1) // Sommet
+		addPlat(currX+BlockSize*12, floorY-BlockSize*3, 3)
+		addPlat(currX+BlockSize*13, floorY-BlockSize*4, 1)
 
-		// Obstacle 2 : Une stalactite au plafond à esquiver par le bas
-		addPlat(currX+BlockSize*16, floorY-BlockSize*9, 4)
-		addPlat(currX+BlockSize*17, floorY-BlockSize*8, 2) // Pointe
+		addPlat(currX+BlockSize*22, floorY-BlockSize*9, 4)
+		addPlat(currX+BlockSize*23, floorY-BlockSize*8, 2)
 
-		// Obstacle 3 : Double-esquive (Sol puis Plafond rapprochés)
-		addPlat(currX+BlockSize*26, floorY-BlockSize*3, 2)
-		addPlat(currX+BlockSize*30, floorY-BlockSize*8, 2)
+		addPlat(currX+BlockSize*34, floorY-BlockSize*3, 2)
+		addPlat(currX+BlockSize*40, floorY-BlockSize*8, 2)
 
-		// Plafond global de la caverne 1
-		addPlat(currX, floorY-BlockSize*12, 38)
-		currX += BlockSize * 38
+		addPlat(currX, floorY-BlockSize*12, 45)
+		currX += BlockSize * 45
 
-		// 8. SHIP ZIGZAG : Les marches suspendues
-		// Des plateformes de longueurs variables à contourner en "S"
-		addPlat(currX, floorY-BlockSize*6, 4) // Au milieu
-		currX += BlockSize * 8
-		addPlat(currX, floorY-BlockSize*3, 3) // Plus bas, oblige à piquer du nez
-		currX += BlockSize * 7
-		addPlat(currX, floorY-BlockSize*8, 3) // Très haut, oblige à remonter sec
-		currX += BlockSize * 7
-		addPlat(currX, floorY-BlockSize*5, 4) // Stabilisation au milieu
+		addPlat(currX, floorY-BlockSize*6, 4)
+		currX += BlockSize * 12
+		addPlat(currX, floorY-BlockSize*3, 3)
 		currX += BlockSize * 10
+		addPlat(currX, floorY-BlockSize*8, 3)
+		currX += BlockSize * 10
+		addPlat(currX, floorY-BlockSize*5, 4)
+		currX += BlockSize * 15
 
-		// 9. THE CORRIDOR (Le "Wave" resserré mais fluide)
-		// Version élargie : 3 blocs de hauteur libre pour laisser respirer le Ship
+		addWall(currX, floorY-BlockSize*9, 7)
 
-		// Phase 1 : Entrée droite et stable
-		addPlat(currX, floorY-BlockSize*8, 10) // Plafond (rehaussé à 8)
-		addPlat(currX, floorY-BlockSize*2, 10) // Sol
+		addPlat(currX, floorY-BlockSize*8, 10)
+		addPlat(currX, floorY-BlockSize*2, 10)
 
-		// Phase 2 : Le couloir monte en diagonale douce
-		// On décale le sol et le plafond en même temps pour garder les 3 blocs d'espace
 		for i := 0; i < 3; i++ {
 			addPlat(currX+BlockSize*10+float64(i)*BlockSize, floorY-BlockSize*float64(8+i), 1)
 			addPlat(currX+BlockSize*10+float64(i)*BlockSize, floorY-BlockSize*float64(2+i), 1)
 		}
 
-		// Phase 3 : Milieu du couloir en hauteur (stabilisation)
-		addPlat(currX+BlockSize*13, floorY-BlockSize*11, 10) // Plafond au max
-		addPlat(currX+BlockSize*13, floorY-BlockSize*5, 10)  // Sol au max
+		addPlat(currX+BlockSize*13, floorY-BlockSize*11, 10)
+		addPlat(currX+BlockSize*13, floorY-BlockSize*5, 10)
 
-		// Phase 4 : Redescente progressive
 		for i := 0; i < 3; i++ {
 			addPlat(currX+BlockSize*23+float64(i)*BlockSize, floorY-BlockSize*float64(11-i), 1)
 			addPlat(currX+BlockSize*23+float64(i)*BlockSize, floorY-BlockSize*float64(5-i), 1)
 		}
 
-		// Phase 5 : Sortie du couloir avant le portail
 		addPlat(currX+BlockSize*26, floorY-BlockSize*8, 8)
 		addPlat(currX+BlockSize*26, floorY-BlockSize*2, 8)
 
-		currX += BlockSize * 34
-
-		// --- SORTIE DU SHIP / RETOUR AU CUBE ---
-
-		currX += BlockSize * 34
-
-		// --- SORTIE DU SHIP / RETOUR AU CUBE ---
-		currX += BlockSize * 2
+		currX += BlockSize * 40
 		addPortalGate(currX)
-		// Portail de sortie (on peut imaginer un portail bleu pour le cube)
+
 		*levelData = append(*levelData, LevelObject{
 			X:       currX,
-			Y:       screenHeight/2 - BlockSize,
-			W:       float64(pinkPortal.Bounds().Dx()) * .6, // a definir
-			H:       float64(pinkPortal.Bounds().Dy()) * .6, // a definir
+			Y:       ScreenHeight/2 - BlockSize,
+			W:       float64(pinkPortal.Bounds().Dx()) * .6,
+			H:       float64(pinkPortal.Bounds().Dy()) * .6,
 			img:     greenPortal,
 			Utility: "cube",
 			s:       .85,
 		})
-		currX += BlockSize * 10
+		currX += BlockSize * 15
 
-		// 10. REPRISE CUBE : Le final original (ajusté)
-		// Sprint final avec des obstacles triples
 		for i := 0; i < 8; i++ {
 			addWall(currX, floorY-BlockSize, 1)
 			if i%2 == 0 {
 				addWall(currX+BlockSize, floorY-BlockSize, 2)
 			}
-			currX += BlockSize * 6
+			currX += BlockSize * 10
 		}
 
-		// 11. MASTER : L'ultime mur de 3 blocs
-		currX += BlockSize * 5
+		currX += BlockSize * 8
 		addWall(currX, floorY-BlockSize, 3)
+		currX += BlockSize * 25
+
+		addWall(currX, floorY-BlockSize, 40)
+		MurDeVictoireX = currX
+
+	case 2:
+		// NIVEAU 2 - Refait avec moins de répétitions et un espacement resserré
+		addPlat(-800.0, floorY, 15000)
+
+		// --- PARTIE 1: CUBE - Enchaînements variés (Espaces réduits) ---
+		addWall(currX, floorY-BlockSize, 1)
+		currX += BlockSize * 9
+		addWall(currX, floorY-BlockSize*2, 1) // Bloc flottant
+		currX += BlockSize * 7
+		addWall(currX, floorY-BlockSize, 2)
+		currX += BlockSize * 10
+
+		// Petits escaliers irréguliers au lieu d'une longue boucle
+		addPlat(currX, floorY-BlockSize*2, 2)
+		currX += BlockSize * 8
+		addPlat(currX, floorY-BlockSize*3, 1)
+		currX += BlockSize * 9
+		addPlat(currX, floorY-BlockSize*1, 3)
+		currX += BlockSize * 12
+
+		// --- PARTIE 2: PREMIER VAISSEAU (SHIP) - Cavernes asymétriques ---
+		// Petite marche pour accéder au portail
+		addPlat(currX, floorY-BlockSize*3, 2)
+		currX += BlockSize * 3
+
+		addPortalGate(currX)
+		*levelData = append(*levelData, LevelObject{
+			X: currX, Y: ScreenHeight/2 - BlockSize, W: BlockSize * 3, H: BlockSize * 3, img: pinkPortal, Utility: "ship", s: .85,
+		})
+		currX += BlockSize * 15
+
+		// petit mur en haut pour empêcher de tricher
+		addWall(currX, floorY-BlockSize*7, BlockSize*8)
+		currX += BlockSize * 2
+
+		// Obstacle 1: Plonger vers le sol
+		addPlat(currX, floorY-BlockSize*9, 6) // Plafond
+		addWall(currX+BlockSize*3, floorY, 3) // Mur en bas
+		currX += BlockSize * 14
+
+		// Obstacle 2: Remonter brusquement
+		addPlat(currX, floorY-BlockSize*3, 5)             // Sol surélevé
+		addWall(currX+BlockSize*2, floorY-BlockSize*8, 3) // Mur au plafond
+		currX += BlockSize * 15
+
+		// Obstacle 3: Couloir technique court
+		addPlat(currX, floorY-BlockSize*7, 10) // Plafond
+		addPlat(currX, floorY-BlockSize*2, 10) // Sol
+		// Mur en haut pour obliger a faire le portail
+		addWall(currX, floorY-BlockSize*7, BlockSize*8)
+		currX += BlockSize * 16
+
+		// --- PARTIE 3: RETOUR AU CUBE - Séquence rythmique ---
+		addPortalGate(currX)
+		*levelData = append(*levelData, LevelObject{
+			X: currX, Y: ScreenHeight/2 - BlockSize, W: BlockSize * 3, H: BlockSize * 3, img: greenPortal, Utility: "cube", s: .85,
+		})
+		currX += BlockSize * 12
+
+		// Sauts syncopés (1 mur, puis 2 serrés, puis en hauteur)
+		addWall(currX, floorY-BlockSize, 1)
+		currX += BlockSize * 7
+		addWall(currX, floorY-BlockSize, 1)
+		addWall(currX+BlockSize*3, floorY-BlockSize, 1)
+		currX += BlockSize * 9
+		addWall(currX, floorY-BlockSize*3, 2) // Mur flottant à éviter par en dessous ou au-dessus
+		currX += BlockSize * 9
+
+		// Double saut sur plateformes
+		addPlat(currX, floorY-BlockSize*2, 1)
+		addPlat(currX+BlockSize*5, floorY-BlockSize*4, 1)
+		currX += BlockSize * 10
+
+		// --- PARTIE 4: DEUXIEME VAISSEAU - Zigzags cassés ---
+		addPortalGate(currX)
+		*levelData = append(*levelData, LevelObject{
+			X: currX, Y: ScreenHeight/2 - BlockSize, W: BlockSize * 3, H: BlockSize * 3, img: pinkPortal, Utility: "ship", s: .85,
+		})
+		currX += BlockSize * 18
+
+		// Changements d'altitude resserrés sans boucle for répétitive
+		addPlat(currX, floorY-BlockSize*8, 3)
+		currX += BlockSize * 10
+		addPlat(currX, floorY-BlockSize*2, 3)
+		currX += BlockSize * 10
+		addPlat(currX, floorY-BlockSize*9, 4)
+		currX += BlockSize * 12
+
+		// Stabilisation avant la sortie
+		addPlat(currX, floorY-BlockSize*6, 12) // Plafond
+		addPlat(currX, floorY-BlockSize*3, 12) // Sol
+		currX += BlockSize * 18
+
+		// --- PARTIE 5: SPRINT FINAL (CUBE) ---
+		addPortalGate(currX)
+		*levelData = append(*levelData, LevelObject{
+			X: currX, Y: ScreenHeight/2 - BlockSize, W: BlockSize * 3, H: BlockSize * 3, img: greenPortal, Utility: "cube", s: .85,
+		})
+		currX += BlockSize * 14
+
+		// Obstacles qui s'épaississent
+		addWall(currX, floorY-BlockSize, 1)
+		currX += BlockSize * 7
+		addWall(currX, floorY-BlockSize, 2)
+		currX += BlockSize * 8
+		addWall(currX, floorY-BlockSize*2, 1)
+		currX += BlockSize * 9
+
+		// Le mur final avant la victoire
+		addWall(currX, floorY-BlockSize, 3)
+		currX += BlockSize * 14
+		addWall(currX, floorY-BlockSize, 3)
+		currX += BlockSize * 5
+		addWall(currX, floorY-BlockSize, 2)
 		currX += BlockSize * 20
 
-		// FIN
-		addWall(currX, floorY-BlockSize, 40)
+		// FIN DU NIVEAU 2
+		addWall(currX, floorY-BlockSize, 60)
 		MurDeVictoireX = currX
 	}
 }
@@ -289,19 +366,14 @@ func Scrolling(blocs []LevelObject, px *float64) []LevelObject {
 }
 
 func (level *LevelObject) Draw(screen *ebiten.Image, screenWidth float64) {
-
 	if level.Utility == "" {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(level.X, level.Y)
 		screen.DrawImage(blockImg, op)
 	} else {
-
 		op := &ebiten.DrawImageOptions{}
-
 		op.GeoM.Translate(-float64(level.img.Bounds().Dx())/2, -float64(level.img.Bounds().Dy())/2)
-
 		op.GeoM.Scale(level.s, level.s)
-
 		op.GeoM.Translate(level.X, level.Y)
 		screen.DrawImage(level.img, op)
 	}
