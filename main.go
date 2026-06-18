@@ -40,8 +40,7 @@ var audioContext *audio.Context
 type Game struct {
 	player   player.Player
 	blocks   []level.LevelObject
-	buttonsE []menu.EnvelopeButton
-	buttonsG []menu.GameButton
+	buttonsE []menu.Button
 	state    string
 	stats    stats.Stats
 	level    int
@@ -58,18 +57,18 @@ var (
 )
 
 var (
-	resumeButton   *ebiten.Image
-	menuButton     *ebiten.Image
-	cubeImg        *ebiten.Image
-	pauseImg       *ebiten.Image
-	menuPlayButton *ebiten.Image
-	downArrow      *ebiten.Image
-	leftArrow      *ebiten.Image
-	rightArrow     *ebiten.Image
-	shipAndCubeImg *ebiten.Image
-	pinkPortal     *ebiten.Image
-	greenPortal    *ebiten.Image
-	nextButton     *ebiten.Image
+	resumeButton    *ebiten.Image
+	menuButton      *ebiten.Image
+	cubeImg         *ebiten.Image
+	pauseImg        *ebiten.Image
+	menuPlayButton  *ebiten.Image
+	downArrow       *ebiten.Image
+	leftArrow       *ebiten.Image
+	rightArrow      *ebiten.Image
+	shipAndCubeImg  *ebiten.Image
+	pinkPortal      *ebiten.Image
+	greenPortal     *ebiten.Image
+	nextLevelButton *ebiten.Image
 )
 
 var levelsNames = []string{"INTRO", "INFERNO", "MINEFIELD", "MASTER"}
@@ -141,7 +140,7 @@ func (g *Game) Update() error {
 		if futureState == "game" {
 			if g.state == "menu" {
 				level1Music.Rewind()
-				level1Music.Play()
+				// level1Music.Play()
 				g.blocks = []level.LevelObject{}
 				level.DistanceTraveled = 0
 				g.player.X = -80
@@ -149,7 +148,7 @@ func (g *Game) Update() error {
 
 				level.Generate(&g.blocks, g.level, pinkPortal, greenPortal)
 			} else {
-				level1Music.Play()
+				// level1Music.Play()
 			}
 		} else {
 
@@ -231,13 +230,11 @@ func main() {
 	resumeButton = loadImage("play button 2.png")
 	menuButton = loadImage("menu button.png")
 	downArrow = loadImage("futuristic triangle down.png")
-	nextButton = loadImage("nextLevel.png")
+	nextLevelButton = loadImage("nextLevel.png")
 
 	leftArrow, rightArrow = levelchooser.Init(downArrow)
 
-	menu.InitEnvelopeButtons(&g.buttonsE, pauseImg, menuPlayButton, resumeButton, menuButton)
-
-	menu.InitGameButtons(&g.buttonsG, nextButton)
+	menu.InitButtons(&g.buttonsE, pauseImg, menuPlayButton, resumeButton, menuButton, nextLevelButton)
 
 	// snd
 	audioContext = audio.NewContext(44100)

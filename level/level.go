@@ -181,16 +181,17 @@ func Generate(levelData *[]LevelObject, levelInt int, pinkPortal, greenPortal *e
 			addPlat(currX+BlockSize*10+float64(i)*BlockSize, floorY-BlockSize*float64(2+i), 1)
 		}
 
-		addPlat(currX+BlockSize*13, floorY-BlockSize*11, 10)
-		addPlat(currX+BlockSize*13, floorY-BlockSize*5, 10)
+		addPlat(currX+BlockSize*13, floorY-BlockSize*12, 10)
+		addPlat(currX+BlockSize*13, floorY-BlockSize*4, 10)
 
 		for i := 0; i < 3; i++ {
-			addPlat(currX+BlockSize*23+float64(i)*BlockSize, floorY-BlockSize*float64(11-i), 1)
-			addPlat(currX+BlockSize*23+float64(i)*BlockSize, floorY-BlockSize*float64(5-i), 1)
+			addPlat(currX+BlockSize*23+float64(i)*BlockSize, floorY-BlockSize*float64(13-i), 1)
+
+			addPlat(currX+BlockSize*23+float64(i)*BlockSize, floorY-BlockSize*float64(3-i), 1)
 		}
 
-		addPlat(currX+BlockSize*26, floorY-BlockSize*8, 8)
-		addPlat(currX+BlockSize*26, floorY-BlockSize*2, 8)
+		addPlat(currX+BlockSize*26, floorY-BlockSize*10, 8)
+		addPlat(currX+BlockSize*26, floorY-BlockSize*1, 8)
 
 		currX += BlockSize * 40
 		addPortalGate(currX)
